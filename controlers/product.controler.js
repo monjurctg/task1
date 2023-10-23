@@ -14,22 +14,36 @@ productController.buyProduct = async (req, res) => {
     try {
         const id = req.params.id
         const { refid, quantity, uid } = req.body
-        const INSERT_IN_ORDER_LIST = 'INSERT INTO  `order-list` (uid,refid,pid,date) VALUES (?, ?, ?, ?)';
-        const FINDUID_QUERY = 'SELECT * FROM products WHERE id = ?';
+        const INSERT_IN_ORDER_LIST = 'INSERT INTO  `order-list` (uid,refid,pid,date,quantity) VALUES (?, ?, ?, ?, ?)';
+        const FINDPID_QUERY = 'SELECT * FROM products WHERE id = ?';
+        const FINDUID_QUERY = 'SELECT * FROM users WHERE id = ?';
         const UPDATE_PRODUCT_QUERY = "UPDATE products SET quantity = ? WHERE id = ?";
+        const INSERT_IN_TRANSACTION_HISTORY = 'INSERT INTO  `transaction_history` (uid,pid,amount,date,status,text) VALUES (?, ?, ?, ?, ?, ?)';
 
-        const [product, fields] = await Pool.query(FINDUID_QUERY, [id]);
+        const [product, fields] = await Pool.query(FINDPID_QUERY, [id]);
+        const [user] = await Pool.query(FINDUID_QUERY, [uid]);
+        // console.log(user,"fjdkfjk")
+
         // console.log(product)
         if (product.length > 0) {
             if (product[0].quantity >= quantity) {
-                const date = new Date().toISOString().split('T')[0]
-                const updateQuantity = product[0].quantity - quantity
-                console.log(updateQuantity)
-                // console.log(date)
-                await Pool.query(INSERT_IN_ORDER_LIST, [uid, refid, id, date]);
-                await Pool.query(UPDATE_PRODUCT_QUERY, [updateQuantity, id])
-                res.status(200).json({ success: true, message: "product order succesfully!" })
+                console.log(user[0].balance>product[0].price)
+                if(user[0].balance>product[0].price){
+                    console.log("insers")
+                    const date = new Date().toISOString().split('T')[0]
+                    const updateQuantity = product[0].quantity - quantity
+                    const text1 ="আপনার ব্যালেন্স থেকে"+product[0].price+"টাকা কেটে নেওয়া হইছে"
+                    // console.log(updateQuantity)
+                    // console.log(date)
+                    await Pool.query(INSERT_IN_ORDER_LIST, [uid, refid, id, date,quantity]);
+                    await Pool.query(UPDATE_PRODUCT_QUERY, [updateQuantity, id])
+                    await Pool.query(INSERT_IN_TRANSACTION_HISTORY,[uid,id,product[0].price,date,0,text1])
+                    res.status(200).json({ success: true, message: "product order succesfully!" })
 
+                }
+                else{
+                    res.json({success:false,message:"আপনার পর্যাপ্ত পরিমান ব্যালেন্স নেই"})
+                }
             }
             else {
                 res.json({ success: false, message: "stcok out" })
@@ -77,6 +91,9 @@ productController.productAccept = async (req, res) => {
 
             const myincome =(product[0].price*2)/100
             const myrefincome =(product[0].price*5)/100
+        
+            const text2 ="আপনার ব্যালেন্সে"+product[0].price+"টাকা যোগ হইছে"
+
 
             // console.log(myincome,myrefincome)
         }
